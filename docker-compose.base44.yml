@@ -1,0 +1,75 @@
+# Base44 development environment for the Sales Analysis project.
+#
+# Brings up the project's real pipeline from the cloned source:
+#   data/sales_project_export.csv -> PostgreSQL (loader) -> SQL analysis + matplotlib charts
+#   (web) -> http://localhost:3000 dashboard
+#
+# Run: docker compose -f docker-compose.base44.yml up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: on-failure
+    environment:
+      POSTGRES_USER: sales
+      POSTGRES_PASSWORD: sales_dev_password
+      POSTGRES_DB: sales
+    volumes:
+      - sales_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales -d sales"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  loader:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: sales
+      PGPASSWORD: sales_dev_password
+      PGDATABASE: sales
+    command: ["sh", "-ec", "pip install --no-cache-dir -q psycopg2-binary && exec python webapp/load_data.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: python:3.12-slim
+    restart: on-failure
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: sales
+      PGPASSWORD: sales_dev_password
+      PGDATABASE: sales
+      PYTHONUNBUFFERED: "1"
+    command: ["sh", "-ec", "pip install --no-cache-dir -q -r webapp/requirements.txt && exec python webapp/app.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+      loader:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:3000/', timeout=4).status == 200 else 1)\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 120s
+
+volumes:
+  sales_pgdata:

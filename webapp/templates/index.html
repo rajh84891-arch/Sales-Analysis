@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales Analysis</title>
+  <style>
+    :root {
+      --ink: #16202c;
+      --muted: #5d6b7a;
+      --line: #e3e8ee;
+      --bg: #f6f8fa;
+      --card: #ffffff;
+      --accent: #2f6feb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      padding: 22px 28px;
+    }
+    header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+    header p { margin: 0; color: var(--muted); font-size: 13px; }
+    main { max-width: 1120px; margin: 0 auto; padding: 24px 28px 56px; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .metric span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .metric strong { display: block; margin-top: 6px; font-size: 24px; font-variant-numeric: tabular-nums; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-top: 20px;
+    }
+    section h2 { margin: 0 0 4px; font-size: 17px; }
+    section p.hint { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    td.num, th.num { text-align: right; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafcfe; }
+    .scroll { max-height: 420px; overflow: auto; }
+    img.chart { width: 100%; height: auto; display: block; }
+    footer { margin-top: 26px; color: var(--muted); font-size: 12px; text-align: center; }
+    code { background: #eef2f6; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📊 Sales Analysis</h1>
+    <p>PostgreSQL + Python — data loaded from <code>data/sales_project_export.csv</code></p>
+  </header>
+
+  <main>
+    <div class="metrics">
+      <div class="metric"><span>Orders</span><strong>{{ metrics.orders }}</strong></div>
+      <div class="metric"><span>Units sold</span><strong>{{ metrics.units_sold }}</strong></div>
+      <div class="metric"><span>Total revenue</span><strong>{{ metrics.total_revenue }}</strong></div>
+      <div class="metric"><span>Avg order value</span><strong>{{ metrics.avg_order_value }}</strong></div>
+    </div>
+
+    <section>
+      <h2>Revenue by Region</h2>
+      <p class="hint">Revenue across all four regions — East leads in this dataset.</p>
+      <div class="grid">
+        <img class="chart" src="/charts/region.png" alt="Total revenue by region">
+        <table>
+          <thead><tr><th>Region</th><th class="num">Total revenue</th></tr></thead>
+          <tbody>
+            {% for row in region_rows %}
+            <tr><td>{{ row.region }}</td><td class="num">{{ row.total_revenue }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Revenue by Product</h2>
+      <p class="hint">Six product lines; Monitors and Smartphones lead revenue.</p>
+      <div class="grid">
+        <img class="chart" src="/charts/product.png" alt="Total revenue by product">
+        <table>
+          <thead><tr><th>Product</th><th class="num">Total revenue</th></tr></thead>
+          <tbody>
+            {% for row in product_rows %}
+            <tr><td>{{ row.product }}</td><td class="num">{{ row.total_revenue }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Monthly Revenue Trends</h2>
+      <p class="hint">Month-over-month revenue and growth rate.</p>
+      <img class="chart" src="/charts/monthly.png" alt="Monthly revenue trends">
+      <div class="scroll" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr><th>Month</th><th class="num">Revenue</th><th class="num">Previous</th><th class="num">Growth</th></tr>
+          </thead>
+          <tbody>
+            {% for row in monthly_rows %}
+            <tr>
+              <td>{{ row.month }}</td>
+              <td class="num">{{ row.total_revenue }}</td>
+              <td class="num">{{ row.previous_revenue or "—" }}</td>
+              <td class="num">{{ row.growth_rate or "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Top 10 Customers</h2>
+      <p class="hint">Key accounts driving total revenue.</p>
+      <div class="grid">
+        <img class="chart" src="/charts/customers.png" alt="Top customers by total revenue">
+        <table>
+          <thead><tr><th>Customer</th><th class="num">Total revenue</th></tr></thead>
+          <tbody>
+            {% for row in customer_rows %}
+            <tr><td>{{ row.customer_name }}</td><td class="num">{{ row.total_revenue }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Outliers in Price Per Unit</h2>
+      <p class="hint">Rows with a price below $50 or above $1,500, as defined in <code>sales_analysis_queries.sql</code>. The boxplot also flags statistical outliers beyond the whiskers.</p>
+      <img class="chart" src="/charts/outliers.png" alt="Boxplot of price per unit">
+      <div class="scroll" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr><th>Order</th><th>Customer</th><th>Product</th><th class="num">Qty</th><th class="num">Price</th><th>Date</th><th>Region</th></tr>
+          </thead>
+          <tbody>
+            {% for row in outlier_rows %}
+            <tr>
+              <td>{{ row.order_id }}</td>
+              <td>{{ row.customer_name }}</td>
+              <td>{{ row.product }}</td>
+              <td class="num">{{ row.quantity }}</td>
+              <td class="num">{{ row.price_per_unit }}</td>
+              <td>{{ row.order_date }}</td>
+              <td>{{ row.region }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">No rows fall outside the $50–$1,500 range.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>Charts rendered live from PostgreSQL with matplotlib — same analysis as <code>Sales_Analysis.py</code>.</footer>
+  </main>
+</body>
+</html>
